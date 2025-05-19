@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MindSync Control</title>
+<style>
+  body {
+    background-color: #121212;
+    color: #cfcfcf;
+    font-family: monospace, monospace;
+    margin: 0;
+    padding: 0;
+    transition: opacity 2s ease;
+  }
+  nav {
+    background-color: #222;
+    color: #00ffab;
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    font-weight: bold;
+    transition: opacity 2s ease;
+    box-shadow: 0 0 8px 2px #00ffab55;
+    filter: drop-shadow(0 0 6px #00ffabaa);
+  }
+  nav .logo {
+    margin-right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 1.8em;
+    font-weight: 900;
+    letter-spacing: 1.2px;
+    filter: drop-shadow(0 0 4px #00ffabaa);
+  }
+  nav .logo img {
+    height: 24px;
+    vertical-align: middle;
+  }
+  nav .clock, nav .status {
+    margin-left: auto;
+    margin-right: 15px;
+    font-size: 0.9em;
+    color: #00ffab;
+    transition: color 0.5s ease;
+    filter: drop-shadow(0 0 4px #00ffabbb);
+  }
+  nav .status.offline {
+    color: #ff4444;
+    filter: drop-shadow(0 0 6px #ff4444);
+  }
+  #inputLabel {
+    display: block;
+    margin: 20px;
+    font-size: 1.2em;
+    color: #00ffab;
+    transition: color 0.3s ease, opacity 2s ease;
+  }
+  #inputLabel.error {
+    color: #ff4444;
+  }
+  #userInput {
+    width: 90%;
+    margin: 10px 20px;
+    padding: 10px;
+    background-color: #222;
+    border: 2px solid #00ffab;
+    color: #00ffab;
+    font-size: 1.1em;
+    font-family: monospace;
+    transition: border-color 0.3s ease, color 0.3s ease, opacity 2s ease;
+    text-shadow: 0 0 8px #00ffabcc;
+    box-shadow: 0 0 10px 2px #00ffab88;
+  }
+  #userInput::placeholder {
+    color: rgba(0, 255, 171, 0.3);
+    text-shadow: 0 0 10px #00ffabcc;
+  }
+  #userInput:focus {
+    background-color: #222;
+    color: #00ffab;
+    border-color: #00ffab;
+    outline: none;
+    text-shadow: 0 0 8px #00ffabcc;
+    box-shadow: 0 0 10px 2px #00ffab88;
+  }
+  #userInput.error {
+    border-color: #ff3333;
+    color: #ff5555;
+    text-shadow: none;
+    box-shadow: none;
+  }
+  #message {
+    margin: 20px;
+    font-family: monospace;
+    font-size: 0.9em;
+    min-height: 150px;
+    white-space: pre-wrap;
+    color: #00ffab;
+    transition: color 0.3s ease, opacity 2s ease;
+    text-shadow: 0 0 8px #00ffabbb;
+  }
+  .loading {
+    font-style: italic;
+    color: #999999;
+  }
+  .fade-out {
+    opacity: 0;
+    pointer-events: none;
+  }
+  #offlineScreen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-color: #121212;
+    color: #ff4444;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-family: monospace;
+    font-size: 1.5em;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 2s ease;
+    z-index: 100;
+  }
+  #offlineScreen.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #offlineScreen img {
+    width: 80px;
+    margin-bottom: 20px;
+    filter: drop-shadow(0 0 5px #ff4444);
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">
+    <img src="https://img.icons8.com/ios-filled/50/00ffab/mind-map.png" alt="Logo" />
+    MindSync Control Panel
+  </div>
+  <div class="clock" id="clock">--:--:--</div>
+  <div class="status" id="status">Status: Online</div>
+</nav>
+
+<label id="inputLabel" for="userInput">Enter command:</label>
+<input type="text" id="userInput" autocomplete="off" placeholder="console://MINDMERGE_NUMBER Command" />
+<div id="message"></div>
+
+<div id="offlineScreen">
+  <img src="https://img.icons8.com/ios-filled/50/ff4444/mind-map.png" alt="Offline Logo" />
+  <div>System is currently <strong>Offline</strong>.</div>
+</div>
+
+<script>
+  const input = document.getElementById('userInput');
+  const label = document.getElementById('inputLabel');
+  const message = document.getElementById('message');
+  const status = document.getElementById('status');
+  const nav = document.querySelector('nav');
+  const offlineScreen = document.getElementById('offlineScreen');
+
+  const COMMAND = "console://MINDMERGE_9164 Unmerge";
+  const PASSWORD = "MindSyncExp";
+
+  let waitingForPassword = false;
+
+  // تحديث الساعة كل ثانية
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent = now.toLocaleTimeString();
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // إزالة الأخطاء عند التعديل
+  input.addEventListener('input', () => {
+    label.classList.remove('error');
+    input.classList.remove('error');
+    if (!waitingForPassword) {
+      input.placeholder = "console://MINDMERGE_NUMBER ,Command";
+      input.type = "text";
+    }
+  });
+
+  // التعامل مع الضغط على Enter
+  input.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+
+    const val = input.value.trim();
+
+    if (!waitingForPassword) {
+      // التحقق من الأمر الصحيح
+      if (val === COMMAND) {
+        waitingForPassword = true;
+        message.textContent = "Enter Password:";
+        input.value = "";
+        input.type = "password";
+        input.placeholder = "Enter Password";
+        label.textContent = "Enter password:";
+        input.focus();
+      } else {
+        // أمر خاطئ: إظهار خطأ وتعطيل الإدخال
+        label.classList.add('error');
+        input.classList.add('error');
+        message.textContent = "❌ Access Denied. Invalid command.\nSystem lockdown initiated.";
+        document.body.style.backgroundColor = "#000000";
+        input.disabled = true;
+      }
+    } else {
+      // في وضع إدخال كلمة المرور
+      if (val === PASSWORD) {
+        input.disabled = true;
+        message.textContent = "Access granted. Starting unmerge sequence...\n";
+        startUnmergeSequence();
+      } else {
+        label.classList.add('error');
+        input.classList.add('error');
+        message.textContent = "Access denied. Wrong password.";
+        input.value = "";
+        input.focus();
+      }
+    }
+  });
+
+  // تسلسل الرسائل عند فتح Unmerge
+  function startUnmergeSequence() {
+    const texts = [
+      "Initializing unmerge protocol...\n",
+      "Decrypting merged data...\n",
+      "Separating personalities...\n",
+      "Analyzing system integrity...\n",
+      "Restoring original state...\n",
+      "Finalizing process...\n",
+      "Unmerge complete. Experiment terminated.\n",
+      "Thank you for using MindSync Services.\n"
+    ];
+
+    let i = 0;
+
+    function typeText() {
+      if (i < texts.length) {
+        message.textContent += texts[i];
+        i++;
+        setTimeout(typeText, 1500);
+      } else {
+        // تحديث الحالة إلى Offline
+        status.textContent = "Status: Offline";
+        status.classList.add('offline');
+
+        setTimeout(() => {
+          nav.classList.add('fade-out');
+          label.classList.add('fade-out');
+          input.classList.add('fade-out');
+          message.classList.add('fade-out');
+
+          setTimeout(() => {
+            offlineScreen.classList.add('visible');
+          }, 2000);
+        }, 2000);
+      }
+    }
+
+    typeText();
+  }
+</script>
+
+</body>
+</html>
